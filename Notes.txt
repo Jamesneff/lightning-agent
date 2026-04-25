@@ -1,0 +1,4 @@
+To-do List:
+
+1. Implement feedback loop, so Lightning people can rate companies agent has found to help guide Agents decision making.
+2. Add Twitter, Crunchbase, Producthunt as sources (including obtaining API keys).
