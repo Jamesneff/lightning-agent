@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %} — Dashboard{% endblock %}
+
+{% block extra_css %}
+  .run-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--accent-glow);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 8px;
+    padding: 13px 18px;
+    margin-bottom: 22px;
+    font-size: 13.5px;
+    color: var(--accent);
+  }
+  .run-banner-text { flex: 1; font-weight: 500; }
+{% endblock %}
+
+{% block content %}
+
+{% if run_active %}
+<div class="run-banner" id="run-banner">
+  <div class="status-dot running"></div>
+  <div class="run-banner-text" id="run-banner-text">
+    Agent run in progress
+    {% if current_run.stage %}— Stage {{ current_run.stage }}/5: {{ current_run.stage_name }}{% endif %}
+  </div>
+  <a href="/run" class="btn btn-primary" style="padding:6px 14px; font-size:12.5px;">View Live Run →</a>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p>Seed-to-Series-A deal flow — AI · Blockchain · Digital Assets</p>
+</div>
+
+<div class="flex gap-3 mb-8">
+  <a href="/run" class="btn btn-primary btn-lg">▶&nbsp; Run Agent</a>
+  <a href="{{ notion_url }}" target="_blank" rel="noopener" class="btn btn-outline btn-lg">↗&nbsp; View Notion Database</a>
+</div>
+
+{% if last_run %}
+<div class="card mb-6">
+  <div class="card-title">Last Run</div>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-value">{{ last_run.articles_fetched }}</div>
+      <div class="stat-label">Articles</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ last_run.profiles_parsed }}</div>
+      <div class="stat-label">Parsed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ last_run.new_companies }}</div>
+      <div class="stat-label">New</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value text-accent">{{ last_run.flagged_count }}</div>
+      <div class="stat-label">Flagged</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value text-success">{{ last_run.notion_written }}</div>
+      <div class="stat-label">To Notion</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{% if last_run.duration_seconds %}{{ "%.0f"|format(last_run.duration_seconds) }}s{% else %}—{% endif %}</div>
+      <div class="stat-label">Duration</div>
+    </div>
+  </div>
+  <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:10px;">
+    <span>{{ last_run.started_at[:16].replace('T',' ') }} UTC</span>
+    <span>·</span>
+    <span class="badge badge-{{ last_run.status }}">{{ last_run.status }}</span>
+    <span>·</span>
+    <a href="/history/{{ last_run.id }}" style="color:var(--accent); text-decoration:none; font-size:12px">View companies →</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-title">Run History</div>
+  {% if runs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date / Time</th>
+          <th>Articles</th>
+          <th>Parsed</th>
+          <th>New</th>
+          <th>Flagged</th>
+          <th>Notion</th>
+          <th>Duration</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr>
+          <td><a href="/history/{{ run.id }}">{{ run.started_at[:16].replace('T',' ') }}</a></td>
+          <td>{{ run.articles_fetched }}</td>
+          <td>{{ run.profiles_parsed }}</td>
+          <td>{{ run.new_companies }}</td>
+          <td style="color:{% if run.flagged_count > 0 %}var(--accent){% else %}inherit{% endif %}; font-weight:{% if run.flagged_count > 0 %}600{% else %}400{% endif %}">{{ run.flagged_count }}</td>
+          <td style="color:{% if run.notion_written > 0 %}var(--success){% else %}inherit{% endif %}">{{ run.notion_written }}</td>
+          <td>{% if run.duration_seconds %}{{ "%.0f"|format(run.duration_seconds) }}s{% else %}—{% endif %}</td>
+          <td><span class="badge badge-{{ run.status }}">{{ run.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="text-align:right; margin-top:12px;">
+    <a href="/history" style="font-size:12px; color:var(--accent); text-decoration:none;">View full history →</a>
+  </div>
+  {% else %}
+  <div style="padding:32px 0; text-align:center; color:var(--text-muted);">
+    No runs yet.<br>
+    <a href="/run" style="color:var(--accent); text-decoration:none; margin-top:8px; display:inline-block;">Run the agent to get started →</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var banner  = document.getElementById('run-banner');
+    var bannerT = document.getElementById('run-banner-text');
+
+    function poll() {
+      fetch('/run/status')
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+          if (d.active) {
+            if (!banner) {
+              var wrap = document.querySelector('.page');
+              var el = document.createElement('div');
+              el.id = 'run-banner';
+              el.className = 'run-banner';
+              el.innerHTML =
+                '<div class="status-dot running"></div>' +
+                '<div class="run-banner-text" id="run-banner-text">Agent run in progress</div>' +
+                '<a href="/run" class="btn btn-primary" style="padding:6px 14px;font-size:12.5px;">View Live Run →</a>';
+              wrap.insertBefore(el, wrap.firstChild);
+              banner  = el;
+              bannerT = document.getElementById('run-banner-text');
+            }
+            banner.style.display = 'flex';
+            var txt = 'Agent run in progress';
+            if (d.stage) { txt += ' — Stage ' + d.stage + '/5: ' + d.stage_name; }
+            bannerT.textContent = txt;
+          } else if (banner) {
+            banner.style.display = 'none';
+          }
+        })
+        .catch(function(){});
+    }
+
+    setInterval(poll, 5000);
+  })();
+</script>
+{% endblock %}

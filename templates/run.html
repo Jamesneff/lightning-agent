@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+{% block title %} — Live Run{% endblock %}
+
+{% block extra_css %}
+  /* ── Stage list ──────────────────────────────────────────── */
+  .stages { display: flex; flex-direction: column; gap: 2px; }
+
+  .stage {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 11px 16px;
+    border-radius: 7px;
+    transition: background 0.2s;
+  }
+  .stage.running { background: var(--accent-glow); }
+
+  .stage-icon {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+    background: var(--card-hover);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .stage.running .stage-icon {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .stage.complete .stage-icon {
+    background: rgba(16,185,129,0.1);
+    border-color: var(--success);
+    color: var(--success);
+  }
+
+  .stage-name { font-size: 13px; color: var(--text-dim); transition: color 0.2s; }
+  .stage.running .stage-name  { color: var(--text); font-weight: 500; }
+  .stage.complete .stage-name { color: var(--text-dim); }
+
+  /* spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 11px; height: 11px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    display: inline-block;
+  }
+
+  /* ── Log stream ──────────────────────────────────────────── */
+  .log-stream {
+    background: #050a12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.75;
+  }
+
+  .log-line          { display: block; }
+  .log-line.print    { color: #cbd5e1; }
+  .log-line.info     { color: #475569; }
+  .log-line.warning  { color: var(--warning); }
+  .log-line.error    { color: var(--error); }
+  .log-line.debug    { color: #2d3748; }
+
+  /* ── Two-col layout ──────────────────────────────────────── */
+  .run-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Company cards ───────────────────────────────────────── */
+  .companies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .company-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 13px 15px;
+    animation: slide-in 0.2s ease-out;
+    transition: border-color 0.2s;
+  }
+  .company-card.flagged { border-color: rgba(59,130,246,0.35); }
+
+  .cc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 7px;
+    gap: 8px;
+  }
+
+  .cc-name { font-weight: 600; font-size: 13px; color: var(--text); }
+
+  .cc-flag { font-size: 11px; color: var(--accent); font-weight: 700; }
+
+  .score-pill {
+    padding: 2px 9px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--card-hover);
+    color: var(--text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .score-pill.high   { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .score-pill.medium { background: rgba(245,158,11,0.15);  color: var(--warning); }
+
+  .cc-summary { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── Banners ─────────────────────────────────────────────── */
+  .banner {
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    display: none;
+    font-size: 13.5px;
+    align-items: center;
+    gap: 12px;
+  }
+  .banner-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: var(--success); }
+  .banner-error   { background: rgba(239,68,68,0.08);  border: 1px solid rgba(239,68,68,0.25);  color: var(--error); }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Live Run</h1>
+  <p id="run-subtitle">Ready — click Run Agent to start.</p>
+</div>
+
+<div id="banner-ok" class="banner banner-success">
+  <span>✓</span>
+  <span id="banner-ok-text">Run complete.</span>
+  <span style="margin-left:auto; display:flex; gap:8px;">
+    <a href="/" class="btn btn-outline" style="padding:5px 12px; font-size:12px">← Dashboard</a>
+  </span>
+</div>
+
+<div id="banner-err" class="banner banner-error">
+  <span>✕</span>
+  <span id="banner-err-text">Pipeline failed.</span>
+  <span style="margin-left:auto;">
+    <a href="/" class="btn btn-outline" style="padding:5px 12px; font-size:12px">← Dashboard</a>
+  </span>
+</div>
+
+<div class="run-grid">
+  <!-- Stages -->
+  <div class="card">
+    <div class="card-title">Pipeline Stages</div>
+    <div class="stages">
+      <div class="stage" id="stage-1"><div class="stage-icon">1</div><div class="stage-name">Fetching articles</div></div>
+      <div class="stage" id="stage-2"><div class="stage-icon">2</div><div class="stage-name">Parsing profiles</div></div>
+      <div class="stage" id="stage-3"><div class="stage-icon">3</div><div class="stage-name">Deduplicating</div></div>
+      <div class="stage" id="stage-4"><div class="stage-icon">4</div><div class="stage-name">Researching &amp; scoring</div></div>
+      <div class="stage" id="stage-5"><div class="stage-icon">5</div><div class="stage-name">Writing to Notion</div></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-title">Live Output</div>
+    <div class="log-stream" id="log-stream">
+      <span class="log-line info">Waiting for pipeline…</span>
+    </div>
+  </div>
+</div>
+
+<!-- Company scores -->
+<div class="card" id="companies-card" style="display:none;">
+  <div class="card-title">Companies Scored — <span id="companies-count">0</span></div>
+  <div class="companies-grid" id="companies-grid"></div>
+</div>
+
+<div class="flex gap-3" style="margin-top:16px;">
+  <button id="run-btn" class="btn btn-primary">Run Agent</button>
+  <a href="/" class="btn btn-outline">← Back to Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const socket     = io('http://localhost:5000');
+  const logEl      = document.getElementById('log-stream');
+  const ccCard     = document.getElementById('companies-card');
+  const ccGrid     = document.getElementById('companies-grid');
+  const ccCount    = document.getElementById('companies-count');
+  const subtitle   = document.getElementById('run-subtitle');
+  let companyN = 0;
+
+  // ── Helpers ────────────────────────────────────────────────
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function appendLog(text, level) {
+    const span = document.createElement('span');
+    span.className = 'log-line ' + level;
+    span.textContent = text;
+    logEl.appendChild(span);
+    logEl.appendChild(document.createTextNode('\n'));
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStage(n, name, status) {
+    const el   = document.getElementById('stage-' + n);
+    if (!el) return;
+    el.className = 'stage ' + status;
+    el.querySelector('.stage-name').textContent = name;
+    const icon = el.querySelector('.stage-icon');
+    if (status === 'running') {
+      icon.innerHTML = '<div class="spinner"></div>';
+    } else if (status === 'complete') {
+      icon.textContent = '✓';
+    } else {
+      icon.textContent = String(n);
+    }
+  }
+
+  function addCompany(d) {
+    ccCard.style.display = '';
+    companyN++;
+    ccCount.textContent = companyN;
+    const scoreClass = d.score >= 70 ? 'high' : d.score >= 50 ? 'medium' : '';
+    const flagTag = d.flag ? '<span class="cc-flag">★ FLAG</span>' : '';
+    const body = d.error
+      ? '<span style="color:var(--error);font-size:11.5px">' + esc(d.error) + '</span>'
+      : '<div class="cc-summary">' + esc(d.summary || '—') + '</div>';
+    const card = document.createElement('div');
+    card.className = 'company-card' + (d.flag ? ' flagged' : '');
+    card.innerHTML =
+      '<div class="cc-header">' +
+        '<div><div class="cc-name">' + esc(d.name) + '</div>' + flagTag + '</div>' +
+        '<div class="score-pill ' + scoreClass + '">' + d.score + '</div>' +
+      '</div>' + body;
+    ccGrid.prepend(card);
+  }
+
+  let _resuming = false;
+
+  // ── Replay buffered run state ──────────────────────────────
+  function replayState(d) {
+    _resuming = true;
+    logEl.innerHTML = '';
+    ccGrid.innerHTML = '';
+    companyN = 0;
+    ccCard.style.display = 'none';
+    // replay stages
+    Object.keys(d.stages || {}).forEach(n => {
+      const s = d.stages[n];
+      setStage(parseInt(n), s.name, s.status);
+    });
+    // replay log buffer
+    (d.log_buffer || []).forEach(entry => appendLog(entry.text, entry.level));
+    // replay companies
+    (d.companies || []).forEach(c => addCompany(c));
+    subtitle.textContent = d.active
+      ? 'Pipeline running — run #' + d.run_id
+      : 'Pipeline complete';
+    document.getElementById('g-status-dot').classList.toggle('running', d.active);
+    document.getElementById('g-status-text').textContent = d.active ? 'Running' : 'Pipeline idle';
+    if (!d.active && d.stats && Object.keys(d.stats).length) {
+      const s = d.stats;
+      const banner = document.getElementById('banner-ok');
+      banner.style.display = 'flex';
+      document.getElementById('banner-ok-text').textContent =
+        'Run complete — ' + s.articles_fetched + ' articles fetched · ' +
+        s.profiles_parsed + ' parsed · ' +
+        s.flagged_count + ' flagged · ' +
+        s.notion_written + ' written to Notion';
+    }
+  }
+
+  // ── Run button ─────────────────────────────────────────────
+  const runBtn = document.getElementById('run-btn');
+
+  function startRun() {
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running…';
+    logEl.innerHTML = '';
+    ccGrid.innerHTML = '';
+    companyN = 0;
+    ccCard.style.display = 'none';
+    document.getElementById('banner-ok').style.display = 'none';
+    document.getElementById('banner-err').style.display = 'none';
+    // reset all stage indicators
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById('stage-' + i);
+      if (el) {
+        el.className = 'stage';
+        el.querySelector('.stage-icon').textContent = String(i);
+      }
+    }
+    appendLog('Launching pipeline…', 'info');
+    subtitle.textContent = 'Starting pipeline…';
+    document.getElementById('g-status-dot').classList.add('running');
+    document.getElementById('g-status-text').textContent = 'Running';
+
+    fetch('/run/start', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          appendLog('Error: ' + data.error, 'error');
+          subtitle.textContent = data.error;
+          document.getElementById('g-status-dot').classList.remove('running');
+          document.getElementById('g-status-text').textContent = 'Pipeline idle';
+          runBtn.disabled = false;
+          runBtn.textContent = 'Run Agent';
+        } else {
+          appendLog('Run #' + data.run_id + ' started.', 'info');
+          subtitle.textContent = 'Pipeline running — run #' + data.run_id;
+        }
+      })
+      .catch(err => {
+        appendLog('Failed to start: ' + err, 'error');
+        runBtn.disabled = false;
+        runBtn.textContent = 'Run Agent';
+      });
+  }
+
+  runBtn.addEventListener('click', startRun);
+
+  // ── SocketIO events ────────────────────────────────────────
+  socket.on('connected', d => {
+    appendLog(d.message, 'info');
+  });
+
+  socket.on('connect', () => {
+    // Replay state if a run is already active or just finished
+    fetch('/run/status')
+      .then(r => r.json())
+      .then(d => {
+        if (d.active) {
+          replayState(d);
+          runBtn.disabled = true;
+          runBtn.textContent = 'Running…';
+        } else if (d.run_id && d.stats && Object.keys(d.stats).length) {
+          replayState(d);
+        }
+        // otherwise just wait for user to click Run Agent
+      })
+      .catch(() => {});
+  });
+
+  socket.on('log_line',     d => appendLog(d.text, d.level));
+  socket.on('stage_update', d => setStage(d.n, d.name, d.status));
+  socket.on('company_scored', d => addCompany(d));
+
+  socket.on('run_complete', d => {
+    subtitle.textContent = 'Pipeline complete';
+    document.getElementById('g-status-dot').classList.remove('running');
+    document.getElementById('g-status-text').textContent = 'Pipeline idle';
+    runBtn.disabled = false;
+    runBtn.textContent = 'Run Agent';
+    const banner = document.getElementById('banner-ok');
+    banner.style.display = 'flex';
+    document.getElementById('banner-ok-text').textContent =
+      'Run complete — ' + d.articles_fetched + ' articles fetched · ' +
+      d.profiles_parsed + ' parsed · ' +
+      d.flagged_count + ' flagged · ' +
+      d.notion_written + ' written to Notion';
+  });
+
+  socket.on('run_failed', d => {
+    subtitle.textContent = 'Pipeline failed';
+    document.getElementById('g-status-dot').classList.remove('running');
+    document.getElementById('g-status-text').textContent = 'Pipeline idle';
+    runBtn.disabled = false;
+    runBtn.textContent = 'Run Agent';
+    const banner = document.getElementById('banner-err');
+    banner.style.display = 'flex';
+    document.getElementById('banner-err-text').textContent = d.error || 'An unexpected error occurred.';
+  });
+</script>
+{% endblock %}

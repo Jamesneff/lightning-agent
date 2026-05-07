@@ -1,0 +1,41 @@
+Collecting flask
+  Downloading flask-3.1.3-py3-none-any.whl.metadata (3.2 kB)
+Collecting flask-socketio
+  Downloading flask_socketio-5.6.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting simple-websocket
+  Downloading simple_websocket-1.1.0-py3-none-any.whl.metadata (1.5 kB)
+Collecting blinker>=1.9.0 (from flask)
+  Downloading blinker-1.9.0-py3-none-any.whl.metadata (1.6 kB)
+Requirement already satisfied: click>=8.1.3 in c:\python311\lib\site-packages (from flask) (8.3.0)
+Collecting itsdangerous>=2.2.0 (from flask)
+  Downloading itsdangerous-2.2.0-py3-none-any.whl.metadata (1.9 kB)
+Requirement already satisfied: jinja2>=3.1.2 in c:\python311\lib\site-packages (from flask) (3.1.6)
+Requirement already satisfied: markupsafe>=2.1.1 in c:\python311\lib\site-packages (from flask) (3.0.3)
+Requirement already satisfied: werkzeug>=3.1.0 in c:\python311\lib\site-packages (from flask) (3.1.3)
+Collecting python-socketio>=5.12.0 (from flask-socketio)
+  Downloading python_socketio-5.16.1-py3-none-any.whl.metadata (3.3 kB)
+Collecting wsproto (from simple-websocket)
+  Downloading wsproto-1.3.2-py3-none-any.whl.metadata (5.2 kB)
+Requirement already satisfied: colorama in c:\python311\lib\site-packages (from click>=8.1.3->flask) (0.4.6)
+Collecting bidict>=0.21.0 (from python-socketio>=5.12.0->flask-socketio)
+  Downloading bidict-0.23.1-py3-none-any.whl.metadata (8.7 kB)
+Collecting python-engineio>=4.11.0 (from python-socketio>=5.12.0->flask-socketio)
+  Downloading python_engineio-4.13.1-py3-none-any.whl.metadata (2.3 kB)
+Requirement already satisfied: h11<1,>=0.16.0 in c:\python311\lib\site-packages (from wsproto->simple-websocket) (0.16.0)
+Downloading flask-3.1.3-py3-none-any.whl (103 kB)
+   ---------------------------------------- 103.4/103.4 kB 2.9 MB/s eta 0:00:00
+Downloading flask_socketio-5.6.1-py3-none-any.whl (18 kB)
+Downloading simple_websocket-1.1.0-py3-none-any.whl (13 kB)
+Downloading blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Downloading python_socketio-5.16.1-py3-none-any.whl (82 kB)
+   ---------------------------------------- 82.1/82.1 kB 4.5 MB/s eta 0:00:00
+Downloading wsproto-1.3.2-py3-none-any.whl (24 kB)
+Downloading bidict-0.23.1-py3-none-any.whl (32 kB)
+Downloading python_engineio-4.13.1-py3-none-any.whl (59 kB)
+   ---------------------------------------- 59.8/59.8 kB ? eta 0:00:00
+Installing collected packages: wsproto, itsdangerous, blinker, bidict, simple-websocket, flask, python-engineio, python-socketio, flask-socketio
+Successfully installed bidict-0.23.1 blinker-1.9.0 flask-3.1.3 flask-socketio-5.6.1 itsdangerous-2.2.0 python-engineio-4.13.1 python-socketio-5.16.1 simple-websocket-1.1.0 wsproto-1.3.2
+
+[notice] A new release of pip is available: 24.0 -> 26.0.1
+[notice] To update, run: python.exe -m pip install --upgrade pip

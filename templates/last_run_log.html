@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %} — Last Run Log{% endblock %}
+
+{% block extra_css %}
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-dim);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    font-family: var(--font);
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .decision-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  .d-extracted  { background: rgba(16,185,129,0.12); color: var(--success); }
+  .d-no_company { background: rgba(245,158,11,0.12); color: var(--warning); }
+  .d-skipped    { background: rgba(74,85,104,0.2);   color: var(--text-muted); }
+  .d-error      { background: rgba(239,68,68,0.12);  color: var(--error); }
+  .d-llm_error  { background: rgba(239,68,68,0.12);  color: var(--error); }
+  .d-listicle        { background: rgba(139,92,246,0.12); color: #a78bfa; }
+  .bypass-label      { font-size: 10.5px; color: var(--accent); margin-top: 2px; }
+
+  .score-cell {
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  .rationale-pre {
+    white-space: pre-wrap;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
+    max-width: 340px;
+  }
+
+  .verticals-list { font-size: 11.5px; color: var(--text-muted); }
+
+  .summary-pills {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .pill {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    text-align: center;
+    min-width: 90px;
+  }
+  .pill-val { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+  .pill-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-top: 3px; }
+
+  .filter-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-row input[type=text] {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font);
+    width: 240px;
+    outline: none;
+  }
+  .filter-row input[type=text]:focus { border-color: var(--accent); }
+  .filter-row select {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: var(--font);
+    outline: none;
+    cursor: pointer;
+  }
+  .filter-row select:focus { border-color: var(--accent); }
+
+  td.title-cell {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+  }
+  td.company-cell {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .empty-state {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Last Run Log</h1>
+  <p>Full article-level decisions from the most recent pipeline run</p>
+</div>
+
+{% if not parse_log and not scored_log %}
+<div class="empty-state">
+  No log files found — run the agent first.<br>
+  <a href="/run" style="color:var(--accent); text-decoration:none; margin-top:8px; display:inline-block;">Run Agent →</a>
+</div>
+{% else %}
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('parse', this)">
+    Article Decisions
+    {% if parse_log %}<span style="margin-left:6px; font-size:11px; color:var(--text-muted)">({{ parse_log|length }})</span>{% endif %}
+  </button>
+  <button class="tab-btn" onclick="switchTab('scored', this)">
+    Scored Companies
+    {% if scored_log %}<span style="margin-left:6px; font-size:11px; color:var(--text-muted)">({{ scored_log|length }})</span>{% endif %}
+  </button>
+</div>
+
+<!-- ── Parse tab ────────────────────────────────────────────────────────── -->
+<div id="tab-parse" class="tab-panel active">
+  {% if parse_log %}
+    {% set extracted  = parse_log | selectattr('decision','eq','extracted') | list %}
+    {% set listicles  = parse_log | selectattr('decision','eq','listicle')  | list %}
+    {% set no_company = parse_log | selectattr('decision','eq','no_company') | list %}
+    {% set errors     = parse_log | selectattr('decision','in',['error','llm_error','skipped']) | list %}
+
+    <div class="summary-pills">
+      <div class="pill">
+        <div class="pill-val">{{ parse_log|length }}</div>
+        <div class="pill-label">Articles In</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val" style="color:var(--success)">{{ extracted|length }}</div>
+        <div class="pill-label">Extracted</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val" style="color:#a78bfa">{{ listicles|length }}</div>
+        <div class="pill-label">Listicles</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val" style="color:var(--warning)">{{ no_company|length }}</div>
+        <div class="pill-label">No Company</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val" style="color:var(--error)">{{ errors|length }}</div>
+        <div class="pill-label">Errors</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <input type="text" id="parse-search" placeholder="Search title or company…" oninput="filterParse()">
+      <select id="parse-decision-filter" onchange="filterParse()">
+        <option value="">All decisions</option>
+        <option value="extracted">Extracted</option>
+        <option value="listicle">Listicle</option>
+        <option value="no_company">No company</option>
+        <option value="error">Error</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table id="parse-table">
+          <thead>
+            <tr>
+              <th>Article Title</th>
+              <th>Decision</th>
+              <th>Company Extracted</th>
+              <th>Stage</th>
+              <th>Verticals</th>
+              <th>Investors</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in parse_log %}
+            {% set d = entry.decision %}
+            {% set ex = entry.extracted if entry.extracted is defined else {} %}
+            <tr data-decision="{{ d }}" data-search="{{ (entry.title or '') | lower }} {{ (ex.company_name or '') | lower }}">
+              <td class="title-cell" title="{{ entry.title or '' }}">
+                {% if entry.url %}
+                  <a href="{{ entry.url }}" target="_blank" rel="noopener">{{ entry.title or '—' }}</a>
+                {% else %}
+                  {{ entry.title or '—' }}
+                {% endif %}
+              </td>
+              <td>
+                <span class="decision-badge d-{{ d }}">
+                  {%- if d == 'listicle' %}{{ entry.reason }}
+                  {%- else %}{{ d | replace('_',' ') }}{% endif -%}
+                </span>
+                {% if entry.bypass %}
+                  <div class="bypass-label">{{ entry.bypass }}</div>
+                {% elif entry.reason and d not in ('extracted', 'listicle') %}
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">{{ entry.reason }}</div>
+                {% endif %}
+              </td>
+              <td class="company-cell">
+                {%- if d == 'listicle' and entry.extracted_companies %}
+                  <span style="color:var(--text-dim); font-weight:400; font-size:12px">
+                    {{ entry.extracted_companies | join(', ') }}
+                  </span>
+                {%- else %}
+                  {{ ex.company_name or '—' }}
+                {%- endif %}
+              </td>
+              <td style="white-space:nowrap; font-size:12px">{{ ex.stage or '—' }}</td>
+              <td class="verticals-list">
+                {% if ex.verticals %}{{ ex.verticals | join(', ') }}{% else %}—{% endif %}
+              </td>
+              <td style="font-size:12px; color:var(--text-dim)">{{ ex.investors or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state">No parse log available yet.</div>
+  {% endif %}
+</div>
+
+<!-- ── Scored tab ───────────────────────────────────────────────────────── -->
+<div id="tab-scored" class="tab-panel">
+  {% if scored_log %}
+    {% set flagged_cos = scored_log | selectattr('flag') | list %}
+    {% set avg_score = (scored_log | map(attribute='score') | select | list | sum / scored_log|length) | round(1) if scored_log else 0 %}
+
+    <div class="summary-pills">
+      <div class="pill">
+        <div class="pill-val">{{ scored_log|length }}</div>
+        <div class="pill-label">Scored</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val" style="color:var(--accent)">{{ flagged_cos|length }}</div>
+        <div class="pill-label">Flagged</div>
+      </div>
+      <div class="pill">
+        <div class="pill-val">{{ avg_score }}</div>
+        <div class="pill-label">Avg Score</div>
+      </div>
+    </div>
+
+    <div class="filter-row">
+      <input type="text" id="scored-search" placeholder="Search company…" oninput="filterScored()">
+      <select id="scored-flag-filter" onchange="filterScored()">
+        <option value="">All</option>
+        <option value="flagged">Flagged only</option>
+        <option value="unflagged">Not flagged</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table id="scored-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Score</th>
+              <th>Flag</th>
+              <th>Stage</th>
+              <th>Founders</th>
+              <th>Raised</th>
+              <th>Investors</th>
+              <th>Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for co in scored_log | sort(attribute='score', reverse=True) %}
+            <tr data-flag="{{ 'flagged' if co.flag else 'unflagged' }}" data-search="{{ (co.company_name or '') | lower }}">
+              <td class="company-cell">
+                {% if co.url %}
+                  <a href="{{ co.url }}" target="_blank" rel="noopener" style="color:var(--text); text-decoration:none;">{{ co.company_name or '—' }}</a>
+                {% else %}
+                  {{ co.company_name or '—' }}
+                {% endif %}
+                {% if co.one_line_description %}
+                  <div style="font-size:11.5px; color:var(--text-muted); font-weight:400; margin-top:2px; max-width:200px; white-space:normal;">{{ co.one_line_description }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="score-cell" style="color:
+                  {%- if co.score >= 70 %}var(--accent)
+                  {%- elif co.score >= 50 %}var(--warning)
+                  {%- else %}var(--text-muted){% endif %}">
+                  {{ co.score }}
+                </span>
+              </td>
+              <td style="font-size:15px">
+                {% if co.flag %}<span style="color:var(--accent)">★</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+              </td>
+              <td style="white-space:nowrap; font-size:12px">{{ co.stage or '—' }}</td>
+              <td style="font-size:12px; color:var(--text-dim)">{{ co.founders or '—' }}</td>
+              <td style="font-size:12px; white-space:nowrap; color:{% if co.total_raised %}var(--success){% else %}var(--text-muted){% endif %}">
+                {{ co.total_raised or '—' }}
+              </td>
+              <td style="font-size:12px; color:var(--text-dim); max-width:160px;">{{ co.investors or '—' }}</td>
+              <td><div class="rationale-pre">{{ co.rationale or '—' }}</div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="empty-state">No scored companies log available yet.</div>
+  {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function filterParse() {
+    var q   = document.getElementById('parse-search').value.toLowerCase();
+    var dec = document.getElementById('parse-decision-filter').value;
+    document.querySelectorAll('#parse-table tbody tr').forEach(function(row) {
+      var matchQ   = !q   || row.dataset.search.includes(q);
+      var matchDec = !dec || row.dataset.decision === dec ||
+                     (dec === 'error' && (row.dataset.decision === 'error' || row.dataset.decision === 'llm_error' || row.dataset.decision === 'skipped'));
+      row.style.display = (matchQ && matchDec) ? '' : 'none';
+    });
+  }
+
+  function filterScored() {
+    var q    = document.getElementById('scored-search').value.toLowerCase();
+    var flag = document.getElementById('scored-flag-filter').value;
+    document.querySelectorAll('#scored-table tbody tr').forEach(function(row) {
+      var matchQ    = !q    || row.dataset.search.includes(q);
+      var matchFlag = !flag || row.dataset.flag === flag;
+      row.style.display = (matchQ && matchFlag) ? '' : 'none';
+    });
+  }
+</script>
+{% endblock %}

@@ -2,3 +2,17 @@ To-do List:
 
 1. Implement feedback loop, so Lightning people can rate companies agent has found to help guide Agents decision making.
 2. Add Twitter, Crunchbase, Producthunt as sources (including obtaining API keys).
+3. https://techcrunch.com/category/artificial-intelligence/feed/ — AI-specific TC articles
+	https://decrypt.co/feed — crypto/web3 news
+	https://news.ycombinator.com/rss — Hacker Show HN posts often surface new startups
+
+
+Other potential new places to look for companies
+
+
+
+
+
+
+
+

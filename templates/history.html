@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %} — History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Run History</h1>
+  <p>All pipeline runs — click a row to view the companies found</p>
+</div>
+
+<div class="card">
+  <div class="card-title">All Runs — {{ runs|length }} total</div>
+  {% if runs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Started (UTC)</th>
+          <th>Duration</th>
+          <th>Articles</th>
+          <th>Parsed</th>
+          <th>New</th>
+          <th>Flagged</th>
+          <th>Notion</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr style="cursor:pointer" onclick="window.location='/history/{{ run.id }}'">
+          <td style="color:var(--text-muted)">#{{ run.id }}</td>
+          <td><a href="/history/{{ run.id }}" onclick="event.stopPropagation()">{{ run.started_at[:16].replace('T',' ') }}</a></td>
+          <td>{% if run.duration_seconds %}{{ "%.0f"|format(run.duration_seconds) }}s{% else %}—{% endif %}</td>
+          <td>{{ run.articles_fetched }}</td>
+          <td>{{ run.profiles_parsed }}</td>
+          <td>{{ run.new_companies }}</td>
+          <td style="color:{% if run.flagged_count > 0 %}var(--accent){% else %}inherit{% endif %}; font-weight:{% if run.flagged_count > 0 %}600{% else %}400{% endif %}">{{ run.flagged_count }}</td>
+          <td style="color:{% if run.notion_written > 0 %}var(--success){% else %}inherit{% endif %}">{{ run.notion_written }}</td>
+          <td><span class="badge badge-{{ run.status }}">{{ run.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:36px 0; text-align:center; color:var(--text-muted);">
+    No runs recorded yet.<br>
+    <a href="/run" style="color:var(--accent); text-decoration:none; margin-top:8px; display:inline-block;">Run the agent →</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

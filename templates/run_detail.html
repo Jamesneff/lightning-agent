@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %} — Run #{{ run.id }}{% endblock %}
+
+{% block extra_css %}
+  .score-num {
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+  .rationale-cell {
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 380px;
+    color: var(--text-muted);
+  }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:6px;">
+  <a href="/history" style="color:var(--text-muted); text-decoration:none; font-size:12.5px;">← History</a>
+</div>
+
+<div class="page-header">
+  <h1>Run #{{ run.id }}</h1>
+  <p>
+    {{ run.started_at[:16].replace('T',' ') }} UTC
+    &nbsp;·&nbsp;
+    <span class="badge badge-{{ run.status }}">{{ run.status }}</span>
+    {% if run.duration_seconds %}
+      &nbsp;·&nbsp; {{ "%.0f"|format(run.duration_seconds) }}s
+    {% endif %}
+  </p>
+</div>
+
+<div class="card mb-6">
+  <div class="card-title">Run Summary</div>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="stat-value">{{ run.articles_fetched }}</div>
+      <div class="stat-label">Articles</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ run.profiles_parsed }}</div>
+      <div class="stat-label">Parsed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ run.new_companies }}</div>
+      <div class="stat-label">New</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value text-accent">{{ run.flagged_count }}</div>
+      <div class="stat-label">Flagged</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value text-success">{{ run.notion_written }}</div>
+      <div class="stat-label">To Notion</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Companies Scored — {{ companies|length }}</div>
+  {% if companies %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Score</th>
+          <th>Flag</th>
+          <th>Rationale</th>
+          <th>Notion</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for co in companies %}
+        <tr>
+          <td style="font-weight:600; color:var(--text); white-space:nowrap">{{ co.company_name or '—' }}</td>
+          <td>
+            <span class="score-num" style="color:
+              {%- if co.score >= 70 %}var(--accent)
+              {%- elif co.score >= 50 %}var(--warning)
+              {%- else %}var(--text-muted){% endif %}">
+              {{ co.score }}
+            </span>
+          </td>
+          <td style="white-space:nowrap; color:var(--accent); font-weight:600">
+            {% if co.flag %}★ Yes{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+          <td class="rationale-cell">{{ co.rationale or '—' }}</td>
+          <td style="color:var(--success)">
+            {% if co.notion_written %}✓{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:28px 0; text-align:center; color:var(--text-muted);">
+    No companies were scored in this run.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

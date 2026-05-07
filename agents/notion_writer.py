@@ -59,6 +59,31 @@ def _slugify(name: str) -> str:
     return name.lower().replace(" ", "-")
 
 
+def _company_age_string(founded_date: str | None) -> str | None:
+    """Return a human-readable age string from a 'YYYY-MM' founded_date.
+
+    Examples: '2 years 3 months', '8 months', '1 year'.
+    Returns None if founded_date is absent or unparseable.
+    """
+    if not founded_date:
+        return None
+    try:
+        year, month = int(founded_date[:4]), int(founded_date[5:7])
+    except (ValueError, IndexError):
+        return None
+    today = datetime.now().date()
+    total_months = (today.year - year) * 12 + (today.month - month)
+    if total_months <= 0:
+        return None
+    years, months = divmod(total_months, 12)
+    parts = []
+    if years:
+        parts.append(f"{years} year{'s' if years != 1 else ''}")
+    if months:
+        parts.append(f"{months} month{'s' if months != 1 else ''}")
+    return " ".join(parts) if parts else None
+
+
 def _to_date_string(value: str | None) -> str | None:
     """Normalise an ISO-8601 datetime or bare date string to YYYY-MM-DD."""
     if not value:
@@ -67,6 +92,7 @@ def _to_date_string(value: str | None) -> str | None:
         return datetime.fromisoformat(value).date().isoformat()
     except ValueError:
         return None
+
 
 
 def add_company_to_notion(company: dict) -> dict:
@@ -78,8 +104,11 @@ def add_company_to_notion(company: dict) -> dict:
         rationale     str           Rationale (rich text)
         url           str           Source article URL (url)
         website       str | None    Company homepage URL → Website column (optional)
-        date_found    str | None    Date Found (ISO-8601); also accepts 'published_date'
+        date_added    str           Date Added — always set to today's date (run date)
         status        str           'New' | 'Reviewed' | 'Pass' — defaults to 'New'
+        founders      str | None    Comma-separated founder names
+        total_raised  str | None    Total funding raised, e.g. '$4M'
+        investors     str | None    Comma-separated investor names
 
     Returns:
         {"ok": True,  "page_id": str}  on success.
@@ -101,9 +130,12 @@ def add_company_to_notion(company: dict) -> dict:
     slug = _slugify(company_name)
     linkedin_url = f"https://linkedin.com/company/{slug}"
     crunchbase_url = f"https://crunchbase.com/organization/{slug}"
-    date_found = _to_date_string(
-        company.get("date_found") or company.get("published_date")
-    )
+    date_added = datetime.now().date().isoformat()
+    founded_date = company.get("founded_date")
+    company_age = _company_age_string(founded_date if isinstance(founded_date, str) else None)
+    founders = (company.get("founders") or "").strip() or None
+    total_raised = (company.get("total_raised") or "").strip() or None
+    investors = (company.get("investors") or "").strip() or None
     status = company.get("status", "New")
     if status not in _VALID_STATUSES:
         logger.warning("Unknown status %r for %s; defaulting to 'New'", status, company_name)
@@ -127,10 +159,19 @@ def add_company_to_notion(company: dict) -> dict:
         properties["Source"] = {"url": url}
     if website_url:
         properties["Website"] = {"url": website_url}
-    properties["LinkedIn"] = {"url": linkedin_url}
-    properties["Crunchbase"] = {"url": crunchbase_url}
-    if date_found:
-        properties["Date Found"] = {"date": {"start": date_found}}
+    if linkedin_url:
+        properties["LinkedIn"] = {"url": linkedin_url}
+    if crunchbase_url:
+        properties["Crunchbase"] = {"url": crunchbase_url}
+    properties["Date Added"] = {"date": {"start": date_added}}
+    if company_age:
+        properties["Company Age"] = {"rich_text": [{"text": {"content": company_age}}]}
+    if founders:
+        properties["Founders"] = {"rich_text": [{"text": {"content": _truncate(founders)}}]}
+    if total_raised:
+        properties["Funding Raised"] = {"rich_text": [{"text": {"content": total_raised}}]}
+    if investors:
+        properties["Investors"] = {"rich_text": [{"text": {"content": _truncate(investors)}}]}
 
     try:
         page = client.pages.create(
